@@ -23,7 +23,7 @@ if (process.env.MONGO_URI) {
     .catch(err => console.error('❌ DB Error:', err));
 }
 
-app.get('/', (req, res) => res.send('Rosette Event Backend is Live!'));
+app.get('/', (req, res) => res.send('Rosette Event Backend is Live!!!!!!'));
 
 // --- AUTH ROUTES (NEW) ---
 
@@ -99,5 +99,6 @@ app.post('/api/events', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
 
 

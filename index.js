@@ -1,67 +1,101 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs'); // New
+const jwt = require('jsonwebtoken'); // New
 require('dotenv').config();
+
+// Import Models
+const Event = require('./models/Event');
+const User = require('./models/User'); // New
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = "mysecretkey123"; // In a real app, put this in .env
 
-// Middleware
-// CORS allows your Flutter app (on a different IP) to talk to this server
 app.use(cors());
 app.use(express.json());
 
-// --- DATABASE CONNECTION ---
-// Uncomment this block when you have your MONGO_URI ready in .env
-/*
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.log('❌ DB Error:', err));
-*/
+// Database Connection
+if (process.env.MONGO_URI) {
+  mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('✅ MongoDB Connected'))
+    .catch(err => console.error('❌ DB Error:', err));
+}
 
-// --- ROUTES ---
+app.get('/', (req, res) => res.send('Rosette Event Backend is Live!'));
 
-// 1. Test Route
-app.get('/', (req, res) => {
-  res.send('Rosette Event Backend is Running!');
+// --- AUTH ROUTES (NEW) ---
+
+// 1. REGISTER
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ error: "Email already exists" });
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
+    const newUser = new User({ name, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: "User created successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 2. Get All Events (Currently returning fake data for testing)
+// 2. LOGIN
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ error: "User not found" });
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+    // Create Token
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({ 
+      token, 
+      user: { id: user._id, name: user.name, email: user.email } 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EVENT ROUTES (EXISTING) ---
+
 app.get('/api/events', async (req, res) => {
-  // Once DB is connected, use: const events = await Event.find();
-  
-  const fakeEvents = [
-    {
-      id: '1',
-      title: 'Sangeet Night',
-      date: '2024-12-12',
-      time: '7:00 PM',
-      location: 'Grand Ballroom',
-      type: 'Party'
-    },
-    {
-      id: '2',
-      title: 'Wedding Ceremony',
-      date: '2024-12-14',
-      time: '10:00 AM',
-      location: 'Rose Garden',
-      type: 'Ceremony'
-    }
-  ];
-  
-  res.json(fakeEvents);
+  try {
+    const events = await Event.find();
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 3. Create Event (Stub)
 app.post('/api/events', async (req, res) => {
-  console.log('Received new event:', req.body);
-  // const newEvent = new Event(req.body);
-  // await newEvent.save();
-  res.status(201).json({ message: 'Event received (not saved yet)', event: req.body });
+  try {
+    const newEvent = new Event(req.body);
+    await newEvent.save();
+    res.status(201).json(newEvent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// --- START SERVER ---
-// "0.0.0.0" is crucial! It lets the server accept connections from other computers on WiFi.
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

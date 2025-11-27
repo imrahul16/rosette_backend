@@ -6,8 +6,8 @@ const jwt = require('jsonwebtoken'); // New
 require('dotenv').config();
 
 // Import Models
-const Event = require('./models/Event');
-const User = require('./models/User'); // New
+const Event = require('./Event');
+const User = require('./User'); // New
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -99,3 +99,4 @@ app.post('/api/events', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
